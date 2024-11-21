@@ -4,8 +4,8 @@ import * as d3 from "d3";
 
 class Child1 extends Component {
   state = {
-    company: "Apple", // Default Company
-    selectedMonth: 11, // Default Month (November, 1-based index)
+    company: "Apple",
+    selectedMonth: 11,
   };
 
   changeMonth = (e) => {
@@ -37,19 +37,19 @@ class Child1 extends Component {
         d.Date.getMonth() === this.state.selectedMonth - 1
     );
 
-    const margin = { top: 20, right: 30, bottom: 40, left: 40 },
+    const margin = { top: 20, right: 100, bottom: 40, left: 40 },
       width = 1000,
       height = 500,
       innerWidth = width - margin.left - margin.right,
       innerHeight = height - margin.top - margin.bottom;
 
-    d3.select(".mysvg").selectAll("*").remove();
+    const svg = d3.select(".mysvg").attr("width", width).attr("height", height);
 
-    const svg = d3
-      .select(".mysvg")
-      .attr("width", width)
-      .attr("height", height)
-      .append("g")
+    const g = svg
+      .selectAll(".chart-group")
+      .data([null])
+      .join("g")
+      .attr("class", "chart-group")
       .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
     const xScale = d3
@@ -77,28 +77,164 @@ class Child1 extends Component {
       .y((d) => yScale(d.Close))
       .curve(d3.curveCardinal);
 
-    svg
-      .append("path")
-      .datum(filteredData)
+    g.selectAll(".line-open")
+      .data([filteredData])
+      .join("path")
+      .attr("class", "line-open")
       .attr("d", lineOpen)
       .attr("fill", "none")
       .attr("stroke", "#b2df8a")
       .attr("stroke-width", 2);
 
-    svg
-      .append("path")
-      .datum(filteredData)
+    g.selectAll(".line-close")
+      .data([filteredData])
+      .join("path")
+      .attr("class", "line-close")
       .attr("d", lineClose)
       .attr("fill", "none")
       .attr("stroke", "#e41a1c")
       .attr("stroke-width", 2);
 
-    svg
-      .append("g")
+    g.selectAll(".x-axis")
+      .data([null])
+      .join("g")
+      .attr("class", "x-axis")
       .attr("transform", `translate(0, ${innerHeight + 10})`)
       .call(d3.axisBottom(xScale).ticks(10));
 
-    svg.append("g").call(d3.axisLeft(yScale));
+    g.selectAll(".y-axis")
+      .data([null])
+      .join("g")
+      .attr("class", "y-axis")
+      .call(d3.axisLeft(yScale));
+
+    g.selectAll(".dot")
+      .data(filteredData)
+      .join(
+        (enter) =>
+          enter
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", (d) => xScale(d.Date))
+            .attr("cy", (d) => yScale(d.Open))
+            .attr("r", 5)
+            .attr("fill", "#b2df8a")
+            .on("mouseover", function (event, d) {
+              tooltip
+                .style("opacity", 1)
+                .html(
+                  `<strong>Date:</strong> ${
+                    d.Date.toISOString().split("T")[0]
+                  }<br>
+             <strong>Open:</strong> ${d.Open.toFixed(2)}<br>
+             <strong>Close:</strong> ${d.Close.toFixed(2)}<br>
+             <strong>Difference:</strong> ${(d.Close - d.Open).toFixed(2)}`
+                )
+                .style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY - 28}px`);
+            })
+            .on("mouseout", function () {
+              tooltip.style("opacity", 0);
+            }),
+        (update) =>
+          update
+            .attr("cx", (d) => xScale(d.Date))
+            .attr("cy", (d) => yScale(d.Open))
+            .attr("fill", "#b2df8a"),
+        (exit) => exit.remove()
+      );
+
+    g.selectAll(".dot-close")
+      .data(filteredData)
+      .join(
+        (enter) =>
+          enter
+            .append("circle")
+            .attr("class", "dot-close")
+            .attr("cx", (d) => xScale(d.Date))
+            .attr("cy", (d) => yScale(d.Close))
+            .attr("r", 5)
+            .attr("fill", "#e41a1c")
+            .on("mouseover", function (event, d) {
+              tooltip
+                .style("opacity", 1)
+                .html(
+                  `<strong>Date:</strong> ${
+                    d.Date.toISOString().split("T")[0]
+                  }<br>
+             <strong>Open:</strong> ${d.Open.toFixed(2)}<br>
+             <strong>Close:</strong> ${d.Close.toFixed(2)}<br>
+             <strong>Difference:</strong> ${(d.Close - d.Open).toFixed(2)}`
+                )
+                .style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY - 28}px`);
+            })
+            .on("mouseout", function () {
+              tooltip.style("opacity", 0);
+            }),
+        (update) =>
+          update
+            .attr("cx", (d) => xScale(d.Date))
+            .attr("cy", (d) => yScale(d.Close))
+            .attr("fill", "#e41a1c"),
+        (exit) => exit.remove()
+      );
+
+    const tooltip = d3
+      .select("body")
+      .selectAll(".tooltip")
+      .data([null])
+      .join("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0)
+      .style("position", "absolute")
+      .style("background-color", "white")
+      .style("border", "1px solid #ccc")
+      .style("padding", "8px")
+      .style("border-radius", "4px")
+      .style("pointer-events", "none");
+
+    const legendData = [
+      { label: "Open", color: "#b2df8a" },
+      { label: "Close", color: "#e41a1c" },
+    ];
+
+    const legend = g
+      .selectAll(".legend")
+      .data([null])
+      .join("g")
+      .attr("class", "legend")
+      .attr("transform", `translate(${innerWidth + 15}, 20)`);
+
+    const legendItems = legend.selectAll(".legend-item").data(legendData);
+
+    legendItems
+      .join(
+        (enter) => {
+          const group = enter.append("g").attr("class", "legend-item");
+          group.append("rect");
+          group.append("text");
+          return group;
+        },
+        (update) => update,
+        (exit) => exit.remove()
+      )
+      .attr("transform", (_, i) => `translate(0, ${i * 20})`)
+      .each(function (d) {
+        const item = d3.select(this);
+        item
+          .select("rect")
+          .attr("width", 15)
+          .attr("height", 15)
+          .attr("fill", d.color);
+
+        item
+          .select("text")
+          .attr("x", 20)
+          .attr("y", 12)
+          .style("font-size", "12px")
+          .text(d.label);
+      });
   }
 
   render() {
